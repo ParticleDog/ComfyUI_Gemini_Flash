@@ -6,7 +6,7 @@ license = "LICENSE"
 dependencies = ["google-generativeai>0.4.1"]
 
 [project.urls]
-Repository = "https://github.com/ShmuelRonen/ComfyUI_Gemini_Flash"
+Repository = "https://github.com/ParticleDog/ComfyUI_Gemini_Flash"
 #  Used by Comfy Registry https://comfyregistry.org
 
 [tool.comfy]

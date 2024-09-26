@@ -5,6 +5,7 @@ from io import BytesIO
 from PIL import Image
 import torch
 from contextlib import contextmanager
+from google.generativeai.types import HarmCategory, HarmBlockThreshold
 
 p = os.path.dirname(os.path.realpath(__file__))
 
@@ -63,8 +64,8 @@ class Gemini_Flash:
             }
         }
 
-    RETURN_TYPES = ("STRING",)
-    RETURN_NAMES = ("text",)
+    RETURN_TYPES = ("STRING", "BOOLEAN")
+    RETURN_NAMES = ("text", "blocked")
     FUNCTION = "generate_content"
 
     CATEGORY = "Gemini flash"
@@ -93,6 +94,7 @@ class Gemini_Flash:
 
         model_name = 'gemini-1.5-flash'
         model = genai.GenerativeModel(model_name)
+        filteroutput = False
 
         with temporary_env_var('HTTP_PROXY', self.proxy), temporary_env_var('HTTPS_PROXY', self.proxy):
             try:
@@ -106,12 +108,24 @@ class Gemini_Flash:
                         raise ValueError(f"{model_name} needs image")
                     else:
                         pil_image = self.tensor_to_image(image)
-                        response = model.generate_content([prompt, pil_image])
-                        textoutput = response.text
+                        response = model.generate_content(
+                            [prompt, pil_image],
+                            safety_settings={
+                                HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
+                                HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
+                                HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
+                                HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
+                            })
+                        if response.prompt_feedback.block_reason:
+                            textoutput = f"Error: {response.prompt_feedback}"
+                            filteroutput = True
+                        else:
+                            textoutput = response.text
             except Exception as e:
                 textoutput = f"Error: {str(e)}"
+                filteroutput = True
         
-        return (textoutput,)
+        return (textoutput, filteroutput)
 
 NODE_CLASS_MAPPINGS = {
     "Gemini_Flash": Gemini_Flash,
