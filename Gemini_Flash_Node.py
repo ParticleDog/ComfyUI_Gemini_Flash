@@ -123,6 +123,7 @@ class Gemini_Flash:
                             textoutput = response.text
             except Exception as e:
                 textoutput = f"Error: {str(e)}"
+                print(textoutput)
                 filteroutput = True
         
         return (textoutput, filteroutput)
