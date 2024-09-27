@@ -118,6 +118,7 @@ class Gemini_Flash:
                             })
                         if response.prompt_feedback.block_reason:
                             textoutput = f"Error: {response.prompt_feedback}"
+                            print(textoutput)
                             filteroutput = True
                         else:
                             textoutput = response.text
