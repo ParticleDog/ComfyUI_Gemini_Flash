@@ -92,7 +92,7 @@ class Gemini_Flash:
         if not self.api_key:
             raise ValueError("API key is required")
 
-        model_name = 'gemini-1.5-flash'
+        model_name = 'gemini-1.5-flash-002'
         model = genai.GenerativeModel(model_name)
         filteroutput = False
 
@@ -110,12 +110,13 @@ class Gemini_Flash:
                         pil_image = self.tensor_to_image(image)
                         response = model.generate_content(
                             [prompt, pil_image],
-                            safety_settings={
-                                HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
-                                HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
-                                HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
-                                HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
-                            })
+                            # safety_settings={
+                            #     HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
+                            #     HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
+                            #     HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
+                            #     HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
+                            # }
+                            )
                         if response.prompt_feedback.block_reason:
                             textoutput = f"Error: {response.prompt_feedback}"
                             print(textoutput)
