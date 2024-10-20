@@ -6,6 +6,7 @@ from PIL import Image
 import torch
 from contextlib import contextmanager
 from google.generativeai.types import HarmCategory, HarmBlockThreshold
+from google.ai.generativelanguage_v1beta.types import SafetyRating, HarmCategory
 
 p = os.path.dirname(os.path.realpath(__file__))
 
@@ -57,15 +58,22 @@ class Gemini_Flash:
                 "prompt": ("STRING", {"default": "Analyze the image and make a txt2img detailed prompt. no prefix!", "multiline": True}),
                 "vision": ("BOOLEAN", {"default": True}),
                 "api_key": ("STRING", {"default": ""}),
-                "proxy": ("STRING", {"default": ""})
+                "proxy": ("STRING", {"default": ""}),
+                "sexually_block_level": (([
+                        "UNSPECIFIED",
+                        "HIGH",
+                        "MEDIUM",
+                        "LOW",
+                        "NEGLIGIBLE",
+                ]),)
             },
             "optional": {
                 "image": ("IMAGE",),  
             }
         }
 
-    RETURN_TYPES = ("STRING", "BOOLEAN")
-    RETURN_NAMES = ("text", "blocked")
+    RETURN_TYPES = ("STRING", "BOOLEAN", "STRING")
+    RETURN_NAMES = ("text", "blocked", "sexually_level")
     FUNCTION = "generate_content"
 
     CATEGORY = "Gemini flash"
@@ -76,7 +84,8 @@ class Gemini_Flash:
         image = Image.fromarray(image_np, mode='RGB')
         return image
 
-    def generate_content(self, prompt, vision, api_key, proxy, image=None):
+    def generate_content(self, prompt, vision, api_key, proxy, sexually_block_level, image=None):
+        print(f"Gemini Flash sexually_block_level: {sexually_block_level}")
         config_updated = False
         if api_key and api_key != self.api_key:
             self.api_key = api_key
@@ -95,6 +104,20 @@ class Gemini_Flash:
         model_name = 'gemini-1.5-flash-002'
         model = genai.GenerativeModel(model_name)
         filteroutput = False
+        sexually_level = "UNSPECIFIED"
+        
+        if sexually_block_level == "UNSPECIFIED":
+            sexually_block_level_type = SafetyRating.HarmProbability.HARM_PROBABILITY_UNSPECIFIED
+        elif sexually_block_level == "HIGH":
+            sexually_block_level_type = SafetyRating.HarmProbability.HIGH
+        elif sexually_block_level == "MEDIUM":
+            sexually_block_level_type = SafetyRating.HarmProbability.MEDIUM
+        elif sexually_block_level == "LOW":
+            sexually_block_level_type = SafetyRating.HarmProbability.LOW
+        elif sexually_block_level == "NEGLIGIBLE":
+            sexually_block_level_type = SafetyRating.HarmProbability.NEGLIGIBLE
+        else:
+            sexually_block_level_type = SafetyRating.HarmProbability.HARM_PROBABILITY_UNSPECIFIED
 
         with temporary_env_var('HTTP_PROXY', self.proxy), temporary_env_var('HTTPS_PROXY', self.proxy):
             try:
@@ -110,17 +133,40 @@ class Gemini_Flash:
                         pil_image = self.tensor_to_image(image)
                         response = model.generate_content(
                             [prompt, pil_image],
-                            # safety_settings={
-                            #     HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
-                            #     HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
-                            #     HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
-                            #     HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
-                            # }
+                            safety_settings={
+                                HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
+                                HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
+                                HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
+                                HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
+                            }
                             )
                         if response.prompt_feedback.block_reason:
                             textoutput = f"Error: {response.prompt_feedback}"
                             print(textoutput)
                             filteroutput = True
+                        elif response.candidates[0].safety_ratings:
+                            for rating in response.candidates[0].safety_ratings:
+                                if rating.category == HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT:
+                                    print(f"Sexually level: {rating.probability}")
+                                    
+                                    if rating.probability == SafetyRating.HarmProbability.HARM_PROBABILITY_UNSPECIFIED:
+                                        sexually_level = "UNSPECIFIED"
+                                    elif rating.probability == SafetyRating.HarmProbability.HIGH:
+                                        sexually_level = "HIGH"
+                                    elif rating.probability == SafetyRating.HarmProbability.MEDIUM:
+                                        sexually_level = "MEDIUM"
+                                    elif rating.probability == SafetyRating.HarmProbability.LOW:
+                                        sexually_level = "LOW"
+                                    elif rating.probability == SafetyRating.HarmProbability.NEGLIGIBLE:
+                                        sexually_level = "NEGLIGIBLE"
+                                    else:
+                                        sexually_level = "UNSPECIFIED"
+                                    
+                                    if sexually_block_level_type != SafetyRating.HarmProbability.HARM_PROBABILITY_UNSPECIFIED:
+                                        if rating.probability >= sexually_block_level_type:
+                                            print(f"Blocked!")
+                                            filteroutput = True
+                            textoutput = response.text
                         else:
                             textoutput = response.text
             except Exception as e:
@@ -128,7 +174,7 @@ class Gemini_Flash:
                 print(textoutput)
                 filteroutput = True
         
-        return (textoutput, filteroutput)
+        return (textoutput, filteroutput, sexually_level)
 
 NODE_CLASS_MAPPINGS = {
     "Gemini_Flash": Gemini_Flash,
