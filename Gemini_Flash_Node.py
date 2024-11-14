@@ -57,6 +57,13 @@ class Gemini_Flash:
             "required": {
                 "prompt": ("STRING", {"default": "Analyze the image and make a txt2img detailed prompt. no prefix!", "multiline": True}),
                 "vision": ("BOOLEAN", {"default": True}),
+                "model_name": (([
+                        "gemini-1.5-flash",
+                        "gemini-1.5-flash-8b",
+                        "gemini-1.5-flash-001",
+                        "gemini-1.5-flash-002",
+                        "gemini-1.5-pro",
+                ]),),
                 "api_key": ("STRING", {"default": ""}),
                 "proxy": ("STRING", {"default": ""}),
                 "sexually_block_level": (([
@@ -84,7 +91,7 @@ class Gemini_Flash:
         image = Image.fromarray(image_np, mode='RGB')
         return image
 
-    def generate_content(self, prompt, vision, api_key, proxy, sexually_block_level, image=None):
+    def generate_content(self, prompt, vision, model_name, api_key, proxy, sexually_block_level, image=None):
         print(f"Gemini Flash sexually_block_level: {sexually_block_level}")
         config_updated = False
         if api_key and api_key != self.api_key:
@@ -101,7 +108,6 @@ class Gemini_Flash:
         if not self.api_key:
             raise ValueError("API key is required")
 
-        model_name = 'gemini-1.5-flash-002'
         model = genai.GenerativeModel(model_name)
         filteroutput = False
         sexually_level = "UNSPECIFIED"
