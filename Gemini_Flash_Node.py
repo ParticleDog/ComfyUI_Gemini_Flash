@@ -58,10 +58,10 @@ class Gemini_Flash:
                 "prompt": ("STRING", {"default": "Analyze the image and make a txt2img detailed prompt. no prefix!", "multiline": True}),
                 "vision": ("BOOLEAN", {"default": True}),
                 "model_name": (([
+                        "gemini-1.5-flash-002",
                         "gemini-1.5-flash",
                         "gemini-1.5-flash-8b",
                         "gemini-1.5-flash-001",
-                        "gemini-1.5-flash-002",
                         "gemini-1.5-pro",
                 ]),),
                 "api_key": ("STRING", {"default": ""}),
